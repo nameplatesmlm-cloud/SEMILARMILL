@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semilar Mill - Integrated Machine & Yokogawa Monitoring with Unit Barcode</title>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- QRCode.js CDN (Generating QR Codes locally & online) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-input: #090d16;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #0284c7;
+      --accent-cyan: #00e0ff;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    header {
+      background-color: rgba(30, 41, 59, 0.95);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(5px);
+    }
+
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 70px;
+    }
+
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { background-color: var(--accent-blue); padding: 10px; border-radius: 8px; color: #fff; display: flex; align-items: center; justify-content: center; }
+    .logo-text h1 { font-size: 18px; font-weight: bold; color: #fff; }
+    .logo-text p { font-size: 11px; color: var(--text-muted); }
+
+    nav { display: flex; gap: 5px; background: rgba(15, 23, 42, 0.7); padding: 6px; border-radius: 10px; border: 1px solid var(--border-color); }
+    nav button { background: transparent; border: none; color: var(--text-muted); padding: 8px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    nav button.active { background-color: var(--accent-blue); color: #fff; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.4); }
+
+    .header-right { display: flex; align-items: center; gap: 15px; }
+    .sync-pill { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: var(--text-muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+    .dot.active { background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald); }
+
+    .btn-primary-action { background: #334155; color: #fff; border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+    .main-container { max-width: 1200px; margin: 20px auto; padding: 0 20px; display: flex; flex-direction: column; gap: 20px; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+    .kpi-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .kpi-info p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+    .kpi-info h3 { font-size: 22px; font-weight: 800; margin-top: 5px; }
+    .kpi-icon { padding: 12px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+
+    .tab-pane { display: flex; flex-direction: column; gap: 20px; }
+    .tab-pane.hidden { display: none; }
+
+    .grid-2-col { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid-2-col { grid-template-columns: 1fr; } nav { display: none; } }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+    .card-header { display: flex; items-center; justify-content: space-between; padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); }
+    .card-header h2, .card-header h3 { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+    input[type="text"], input[type="number"], input[type="url"], select, textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; outline: none; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .preventive-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .preventive-box { background: rgba(9, 13, 22, 0.6); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; font-size: 11px; }
+    .preventive-options { display: flex; gap: 10px; margin-top: 6px; }
+
+    .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid; }
+    .status-ok { background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3); }
+    .status-warning { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3); }
+    .status-critical { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3); }
+
+    .btn-submit { width: 100%; background: var(--accent-blue); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    .unit-item { background: rgba(9, 13, 22, 0.7); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .unit-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-qr { background: rgba(0, 224, 255, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .btn-qr:hover { background: var(--accent-cyan); color: #000; }
+
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+    th { background: rgba(9, 13, 22, 0.9); color: var(--text-muted); padding: 12px 10px; border-bottom: 1px solid var(--border-color); text-transform: uppercase; font-weight: 600; }
+    td { padding: 12px 10px; border-bottom: 1px solid rgba(51, 65, 85, 0.5); color: #e2e8f0; }
+
+    .yokogawa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px; }
+    .boiler-card { background: var(--bg-card); border: 1px solid rgba(0, 224, 255, 0.4); border-radius: 12px; padding: 15px; }
+    .boiler-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+    .ip-tag { font-family: monospace; font-size: 11px; background: var(--bg-input); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-muted); }
+
+    iframe { width: 100%; height: 380px; border: none; border-radius: 8px; background: #000; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .modal-backdrop.active { display: flex; }
+    .modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; width: 100%; max-width: 450px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+    .qr-container { background: #fff; padding: 15px; border-radius: 12px; display: inline-block; margin: 15px 0; }
+    
+    @media print { .no-print { display: none !important; } body { background: #fff !important; color: #000 !important; } }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="no-print">
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-icon"><i data-lucide="activity" style="width:24px; height:24px;"></i></div>
+        <div class="logo-text">
+          <h1>SMLM</h1>
+          <p>Integrated Semilar Network Monitoring</p>
+        </div>
+      </div>
+
+      <nav>
+        <button id="nav-checksheet" onclick="switchTab('checksheet')" class="active"><i data-lucide="clipboard-check" style="width:16px; height:16px;"></i> Checksheet</button>
+        <button id="nav-rekap" onclick="switchTab('rekap')"><i data-lucide="bar-chart-3" style="width:16px; height:16px;"></i> Riwayat & Rekap</button>
+        <button id="nav-yokogawa" onclick="switchTab('yokogawa')"><i data-lucide="gauge" style="width:16px; height:16px; color:var(--accent-cyan);"></i> Yokogawa FX1000</button>
+        <button id="nav-settings" onclick="switchTab('settings')"><i data-lucide="cloud" style="width:16px; height:16px;"></i> Cloud Sync</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="sync-pill" id="sync-status-pill">
+          <span class="dot" id="sync-dot"></span>
+          <span id="sync-text">Cloud Offline</span>
+        </div>
+        <button onclick="openAddUnitModal()" class="btn-primary-action">
+          <i data-lucide="plus-circle" style="width:16px; height:16px; color:var(--accent-blue);"></i> Tambah Unit
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+
+    <!-- KPI CARDS -->
+    <section class="kpi-grid no-print">
+      <div class="kpi-card">
+        <div class="kpi-info"><p>Total Unit Mesin</p><h3 id="stat-total-units">0</h3></div>
+        <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.1); color: var(--accent-blue);"><i data-lucide="cpu" style="width:22px; height:22px;"></i></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-info"><p>Status Normal</p><h3 id="stat-normal" style="color:var(--accent-emerald);">0</h3></div>
+        <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-emerald);"><i data-lucide="check-circle-2" style="width:22px; height:22px;"></i></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-info"><p>Status Peringatan</p><h3 id="stat-warning" style="color:var(--accent-amber);">0</h3></div>
+        <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-amber);"><i data-lucide="alert-triangle" style="width:22px; height:22px;"></i></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-info"><p>Status Bahaya</p><h3 id="stat-critical" style="color:var(--accent-rose);">0</h3></div>
+        <div class="kpi-icon" style="background: rgba(244, 63, 94, 0.1); color: var(--accent-rose);"><i data-lucide="alert-octagon" style="width:22px; height:22px;"></i></div>
+      </div>
+    </section>
+
+    <!-- TAB 1: CHECKSHEET -->
+    <div id="tab-content-checksheet" class="tab-pane">
+      <div class="grid-2-col">
+        <div class="card">
+          <div class="card-header">
+            <h2><i data-lucide="edit-3" style="width:18px; height:18px; color:var(--accent-blue);"></i> Form Checksheet Inspeksi Harian</h2>
+            <span id="live-threshold-badge" class="badge-status status-ok">OK / Normal</span>
+          </div>
+
+          <form id="inspectionForm" onsubmit="handleFormSubmit(event)" style="display: flex; flex-direction: column; gap: 15px;">
+            <div class="form-row">
+              <div>
+                <label>Pilih Unit Mesin *</label>
+                <select id="inputUnit" onchange="updateLiveThresholdIndicator()" required></select>
+              </div>
+              <div>
+                <label>Nama Teknisi / Inspector *</label>
+                <input type="text" id="inputInspector" required placeholder="Contoh: Budi Santoso">
+              </div>
+            </div>
+
+            <div class="form-row" style="background: rgba(9, 13, 22, 0.5); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <div>
+                <label>Suhu Mesin (°C) *</label>
+                <input type="number" step="0.1" id="inputTemperature" oninput="updateLiveThresholdIndicator()" required placeholder="0.0">
+                <p id="temp-threshold-hint" style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Batas normal: -</p>
+              </div>
+              <div>
+                <label>Vibrasi / Getaran (mm/s) *</label>
+                <input type="number" step="0.1" id="inputVibration" oninput="updateLiveThresholdIndicator()" required placeholder="0.0">
+                <p id="vib-threshold-hint" style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Batas normal: -</p>
+              </div>
+            </div>
+
+            <div>
+              <label>Pemeriksaan Preventive Status</label>
+              <div class="preventive-grid">
+                <div class="preventive-box">
+                  <div style="font-weight: bold; margin-bottom: 5px;">Level Oli</div>
+                  <div class="preventive-options">
+                    <label><input type="radio" name="checkOli" value="OK" checked> OK</label>
+                    <label><input type="radio" name="checkOli" value="Kurang"> Kurang</label>
+                  </div>
+                </div>
+                <div class="preventive-box">
+                  <div style="font-weight: bold; margin-bottom: 5px;">Grease</div>
+                  <div class="preventive-options">
+                    <label><input type="radio" name="checkGrease" value="OK" checked> OK</label>
+                    <label><input type="radio" name="checkGrease" value="Kering"> Kering</label>
+                  </div>
+                </div>
+                <div class="preventive-box">
+                  <div style="font-weight: bold; margin-bottom: 5px;">Kelistrikan</div>
+                  <div class="preventive-options">
+                    <label><input type="radio" name="checkElectrical" value="OK" checked> OK</label>
+                    <label><input type="radio" name="checkElectrical" value="Abnormal"> Abnormal</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div>
+                <label>Lampirkan Foto Bukti</label>
+                <input type="file" id="inputPhoto" accept="image/*" capture="environment" onchange="previewSelectedImage(event)" style="display:none;">
+                <button type="button" onclick="document.getElementById('inputPhoto').click()" class="btn-primary-action" style="margin-bottom: 8px;">
+                  <i data-lucide="camera" style="width:16px; height:16px; color:var(--accent-blue);"></i> <span id="photo-filename">Ambil / Pilih Foto</span>
+                </button>
+                <div id="photo-preview-container" style="display:none; width: 70px; height: 70px; border-radius: 6px; overflow: hidden; border:1px solid var(--border-color);">
+                  <img id="photo-preview-img" src="" style="width:100%; height:100%; object-fit: cover;">
+                </div>
+              </div>
+              <div>
+                <label>Catatan Tambahan</label>
+                <textarea id="inputNotes" rows="3" placeholder="Catatan temuan..."></textarea>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-submit"><i data-lucide="save" style="width:18px; height:18px;"></i> Simpan Checksheet Inspeksi</button>
+          </form>
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div class="card-header">
+              <h3><i data-lucide="server" style="width:16px; height:16px; color:var(--accent-blue);"></i> Daftar Unit Terdaftar</h3>
+              <button onclick="openAddUnitModal()" style="background:none; border:none; color:var(--accent-blue); cursor:pointer; font-size:12px; font-weight:bold;">+ Baru</button>
+            </div>
+            <div id="unit-list-container" style="max-height: 400px; overflow-y: auto; display:flex; flex-direction:column; gap:10px;"></div>
+          </div>
+          <p style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:15px;">Klik tombol <strong>QR/Link</strong> pada unit untuk melihat riwayat lengkap di Google Spreadsheet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: RIWAYAT -->
+    <div id="tab-content-rekap" class="tab-pane hidden">
+      <div class="card print-shadow-none">
+        <div class="card-header">
+          <h2><i data-lucide="line-chart" style="width:18px; height:18px; color:var(--accent-blue);"></i> Grafik Tren Suhu & Vibrasi Mesin</h2>
+          <select id="chartUnitFilter" onchange="renderChart()" style="width: 200px;">
+            <option value="ALL">Semua Unit Mesin</option>
+          </select>
+        </div>
+        <div style="position: relative; width: 100%; height: 300px;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card print-shadow-none">
+        <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+          <h3><i data-lucide="database" style="width:16px; height:16px; color:var(--accent-blue);"></i> Log Riwayat Inspeksi Machine</h3>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;" class="no-print">
+            <input type="text" id="searchFilter" oninput="renderTable()" placeholder="Cari inspector..." style="width: 150px;">
+            <select id="statusFilter" onchange="renderTable()" style="width: 130px;">
+              <option value="ALL">Semua Status</option>
+              <option value="OK">OK / Normal</option>
+              <option value="Warning">Warning</option>
+              <option value="Critical">Critical</option>
+            </select>
+            <button onclick="exportToCSV()" class="btn-primary-action" style="background:var(--accent-emerald); border:none;"><i data-lucide="file-spreadsheet" style="width:14px; height:14px;"></i> CSV</button>
+            <button onclick="window.print()" class="btn-primary-action"><i data-lucide="printer" style="width:14px; height:14px;"></i> Cetak</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Waktu & Unit</th>
+                <th>Inspector</th>
+                <th style="text-align:center;">Suhu (°C)</th>
+                <th style="text-align:center;">Vibrasi</th>
+                <th>Preventive Status</th>
+                <th>Status</th>
+                <th style="text-align:center;">Foto</th>
+                <th>Catatan</th>
+                <th style="text-align:right;" class="no-print">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: YOKOGAWA -->
+    <div id="tab-content-yokogawa" class="tab-pane hidden">
+      <div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:15px;">
+        <div>
+          <h2 style="font-size: 18px; font-weight: bold; display:flex; align-items:center; gap:8px;">
+            <i data-lucide="gauge" style="width:20px; height:20px; color:var(--accent-cyan);"></i> Monitoring Paperless Yokogawa FX1000 SMLM
+          </h2>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Real-time web display monitoring unit Boiler & Sterilizer Sinar Mas Network.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; background:var(--bg-input); padding: 8px 15px; border-radius:8px; border:1px solid var(--border-color);">
+          <span style="font-size:12px; color:var(--accent-emerald);">Auto Refresh: <strong id="yokogawa-refresh-timer">5s</strong></span>
+          <button onclick="refreshYokogawaIframes()" class="btn-primary-action" style="padding: 4px 10px; font-size:11px;">
+            <i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> Refresh Now
+          </button>
+        </div>
+      </div>
+
+      <div class="yokogawa-grid">
+        <div class="boiler-card">
+          <div class="boiler-header">
+            <h3><i data-lucide="flame" style="width:16px; height:16px; color:var(--accent-amber);"></i> Boiler 1</h3>
+            <span class="ip-tag">10.6.125.121</span>
+          </div>
+          <iframe id="boiler1" src="http://10.6.125.121" title="FX1000 Boiler 1"></iframe>
+        </div>
+
+        <div class="boiler-card">
+          <div class="boiler-header">
+            <h3><i data-lucide="flame" style="width:16px; height:16px; color:var(--accent-amber);"></i> Boiler 2</h3>
+            <span class="ip-tag">10.6.125.122</span>
+          </div>
+          <iframe id="boiler2" src="http://10.6.125.122" title="FX1000 Boiler 2"></iframe>
+        </div>
+
+        <div class="boiler-card">
+          <div class="boiler-header">
+            <h3><i data-lucide="flame" style="width:16px; height:16px; color:var(--accent-amber);"></i> Boiler 3</h3>
+            <span class="ip-tag">10.6.125.124</span>
+          </div>
+          <iframe id="boiler3" src="http://10.6.125.124" title="FX1000 Boiler 3"></iframe>
+        </div>
+
+        <div class="boiler-card">
+          <div class="boiler-header">
+            <h3><i data-lucide="shield-check" style="width:16px; height:16px; color:var(--accent-cyan);"></i> Sterilizer</h3>
+            <span class="ip-tag">10.6.125.53</span>
+          </div>
+          <iframe id="sterilizer" src="http://10.6.125.53" title="Sterilizer"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: CLOUD SYNC -->
+    <div id="tab-content-settings" class="tab-pane hidden">
+      <div class="card" style="max-width: 700px; margin: 0 auto; width: 100%;">
+        <div class="card-header">
+          <h2><i data-lucide="cloud-lightning" style="width:18px; height:18px; color:var(--accent-blue);"></i> Integrasi Cloud Sync (Google Spreadsheet)</h2>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:15px;">
+          <div style="display:flex; align-items:center; justify-content:between; background:var(--bg-input); padding:15px; border-radius:8px; border:1px solid var(--border-color);">
+            <div>
+              <p style="font-size:13px; font-weight:bold;">Aktifkan Cloud Realtime Sync</p>
+              <p style="font-size:11px; color:var(--text-muted);">Kirim data otomatis ke Google Spreadsheet Anda.</p>
+            </div>
+            <label style="cursor:pointer;"><input type="checkbox" id="syncEnableToggle" onchange="toggleCloudSyncState()" style="width:18px; height:18px;"></label>
+          </div>
+
+          <div>
+            <label>Google Apps Script Web App URL *</label>
+            <input type="url" id="cloudScriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+          </div>
+
+          <div>
+            <label>Link Google Spreadsheet Utama (Akses Langsung) *</label>
+            <input type="url" id="googleSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit">
+            <p style="font-size:10px; color:var(--text-muted); margin-top:4px;">Link Spreadsheet ini digunakan untuk membuat Barcode Riwayat Unit.</p>
+          </div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="saveCloudSettings()" class="btn-submit" style="width:auto; flex:1;"><i data-lucide="save" style="width:16px; height:16px;"></i> Simpan Konfigurasi</button>
+            <button onclick="testCloudConnection()" class="btn-primary-action" style="background:#334155;"><i data-lucide="wifi" style="width:16px; height:16px; color:var(--accent-emerald);"></i> Uji Koneksi</button>
+            <button onclick="pullDataFromCloud()" class="btn-primary-action" style="background:var(--accent-emerald); border:none;"><i data-lucide="download-cloud" style="width:16px; height:16px;"></i> Tarik Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: UNIT BARCODE / QR LINK TO GOOGLE SPREADSHEET -->
+  <div id="unitBarcodeModal" class="modal-backdrop">
+    <div class="modal-box" style="text-align: center;">
+      <div class="card-header" style="margin-bottom:15px; justify-content:space-between;">
+        <h3 id="barcodeModalTitle" style="color:var(--accent-cyan);">QR Barcode Unit</h3>
+        <button onclick="closeBarcodeModal()" style="background:none; border:none; color:#fff; cursor:pointer;"><i data-lucide="x" style="width:18px; height:18px;"></i></button>
+      </div>
+      
+      <p style="font-size:12px; color:var(--text-muted);">Scan QR Barcode di bawah untuk langsung membuka riwayat unit ini di Google Spreadsheet:</p>
+      
+      <div class="qr-container">
+        <div id="qrcode"></div>
+      </div>
+
+      <div style="margin-top:10px; text-align:left;">
+        <label>Link Google Spreadsheet Unit:</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="barcodeDirectUrl" readonly style="font-size:11px; background:#000;">
+          <button onclick="openSheetUrlDirect()" class="btn-primary-action" style="background:var(--accent-blue);"><i data-lucide="external-link" style="width:14px; height:14px;"></i> Buka</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD UNIT -->
+  <div id="addUnitModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="card-header" style="margin-bottom:15px;">
+        <h3>Tambah Unit Mesin Baru</h3>
+        <button onclick="closeAddUnitModal()" style="background:none; border:none; color:#fff; cursor:pointer;"><i data-lucide="x" style="width:18px; height:18px;"></i></button>
+      </div>
+      <form id="addUnitForm" onsubmit="handleAddUnitSubmit(event)" style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <label>Kode / ID Unit *</label>
+          <input type="text" id="newUnitId" required placeholder="Contoh: PUMP-03">
+        </div>
+        <div>
+          <label>Nama Unit Mesin *</label>
+          <input type="text" id="newUnitName" required placeholder="Contoh: Cooling Water Pump">
+        </div>
+        <div>
+          <label>Lokasi / Area</label>
+          <input type="text" id="newUnitLocation" placeholder="Contoh: Plant Area B">
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Max Suhu Normal (°C)</label>
+            <input type="number" id="newMaxTemp" required value="75">
+          </div>
+          <div>
+            <label>Max Vibrasi (mm/s)</label>
+            <input type="number" step="0.1" id="newMaxVib" required value="4.5">
+          </div>
+        </div>
+        <button type="submit" class="btn-submit" style="margin-top:10px;">Simpan Unit Mesin</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PHOTO VIEWER -->
+  <div id="photoViewerModal" class="modal-backdrop" onclick="closePhotoViewer()">
+    <div style="max-width:90%; max-height:90vh; text-align:center;">
+      <img id="modalImageViewer" src="" style="max-width:100%; max-height:80vh; border-radius:8px; border:1px solid var(--border-color);">
+      <p id="modalImageCaption" style="font-size:12px; color:#fff; margin-top:10px;"></p>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_UNITS = [
+      { id: 'PUMP-01', name: 'Main Water Pump A', location: 'Utility Area', maxTemp: 70, maxVib: 4.5 },
+      { id: 'COMP-02', name: 'Air Compressor B', location: 'Production Line 1', maxTemp: 80, maxVib: 5.0 },
+      { id: 'GEN-01', name: 'Genset Standby 500kVA', location: 'Power House', maxTemp: 85, maxVib: 6.0 }
+    ];
+
+    let units = JSON.parse(localStorage.getItem('indusense_units')) || DEFAULT_UNITS;
+    let historyLogs = JSON.parse(localStorage.getItem('indusense_history')) || [];
+    let cloudSettings = JSON.parse(localStorage.getItem('indusense_cloud')) || { enabled: false, scriptUrl: '', sheetUrl: '' };
+
+    let currentPhotoBase64 = null;
+    let chartInstance = null;
+    let yokogawaRefreshInterval = null;
+    let qrCodeObj = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      populateUnitOptions();
+      renderUnitList();
+      renderTable();
+      renderChart();
+      updateDashboardKPI();
+      updateLiveThresholdIndicator();
+      initCloudSettingsUI();
+      initYokogawaAutoRefresh();
+    });
+
+    function switchTab(tabName) {
+      ['checksheet', 'rekap', 'yokogawa', 'settings'].forEach(t => {
+        document.getElementById(`tab-content-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`nav-${t}`);
+        if(btn) btn.className = (t === tabName) ? 'active' : '';
+      });
+      document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+      if (tabName === 'rekap') setTimeout(() => { renderChart(); }, 100);
+    }
+
+    function initYokogawaAutoRefresh() {
+      if (yokogawaRefreshInterval) clearInterval(yokogawaRefreshInterval);
+      yokogawaRefreshInterval = setInterval(() => { refreshYokogawaIframes(); }, 5000);
+    }
+
+    function refreshYokogawaIframes() {
+      ['boiler1', 'boiler2', 'boiler3', 'sterilizer'].forEach(id => {
+        const frame = document.getElementById(id);
+        if (frame) frame.src = frame.src;
+      });
+    }
+
+    function populateUnitOptions() {
+      const inputSelect = document.getElementById('inputUnit');
+      const filterSelect = document.getElementById('chartUnitFilter');
+      const opts = units.map(u => `<option value="${u.id}">${u.id} - ${u.name}</option>`).join('');
+      inputSelect.innerHTML = opts;
+      filterSelect.innerHTML = `<option value="ALL">Semua Unit Mesin</option>` + opts;
+    }
+
+    function updateLiveThresholdIndicator() {
+      const selectedId = document.getElementById('inputUnit').value;
+      const tempVal = parseFloat(document.getElementById('inputTemperature').value) || 0;
+      const vibVal = parseFloat(document.getElementById('inputVibration').value) || 0;
+      const unit = units.find(u => u.id === selectedId);
+      if(!unit) return;
+
+      document.getElementById('temp-threshold-hint').innerText = `Batas normal max: ${unit.maxTemp}°C`;
+      document.getElementById('vib-threshold-hint').innerText = `Batas normal max: ${unit.maxVib} mm/s`;
+
+      const badge = document.getElementById('live-threshold-badge');
+      let status = 'OK';
+      if (tempVal > unit.maxTemp + 15 || vibVal > unit.maxVib + 3) status = 'Critical';
+      else if (tempVal > unit.maxTemp || vibVal > unit.maxVib) status = 'Warning';
+
+      badge.className = `badge-status status-${status.toLowerCase()}`;
+      badge.innerText = status === 'OK' ? 'OK / Normal' : (status === 'Warning' ? 'Warning' : 'Critical');
+    }
+
+    function previewSelectedImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      document.getElementById('photo-filename').innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 800;
+          let w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
+          else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          document.getElementById('photo-preview-img').src = currentPhotoBase64;
+          document.getElementById('photo-preview-container').style.display = 'block';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const unitId = document.getElementById('inputUnit').value;
+      const unitObj = units.find(u => u.id === unitId);
+      const tempVal = parseFloat(document.getElementById('inputTemperature').value);
+      const vibVal = parseFloat(document.getElementById('inputVibration').value);
+
+      let status = 'OK';
+      if (tempVal > unitObj.maxTemp + 15 || vibVal > unitObj.maxVib + 3) status = 'Critical';
+      else if (tempVal > unitObj.maxTemp || vibVal > unitObj.maxVib) status = 'Warning';
+
+      const newRecord = {
+        id: 'LOG-' + Date.now(),
+        timestamp: new Date().toLocaleString('id-ID'),
+        unitId: unitId,
+        unitName: unitObj.name,
+        inspector: document.getElementById('inputInspector').value,
+        temperature: tempVal,
+        vibration: vibVal,
+        checkOli: document.querySelector('input[name="checkOli"]:checked').value,
+        checkGrease: document.querySelector('input[name="checkGrease"]:checked').value,
+        checkElectrical: document.querySelector('input[name="checkElectrical"]:checked').value,
+        photoBase64: currentPhotoBase64,
+        notes: document.getElementById('inputNotes').value || '-',
+        status: status
+      };
+
+      historyLogs.unshift(newRecord);
+      saveLocalData();
+      if (cloudSettings.enabled && cloudSettings.scriptUrl) pushRecordToCloud(newRecord);
+
+      document.getElementById('inspectionForm').reset();
+      document.getElementById('photo-preview-container').style.display = 'none';
+      document.getElementById('photo-filename').innerText = 'Ambil / Pilih Foto';
+      currentPhotoBase64 = null;
+
+      updateDashboardKPI();
+      renderTable();
+      renderChart();
+      alert('✅ Result Checksheet berhasil disimpan!');
+    }
+
+    /* BARCODE & SPREADSHEET LINK LOGIC */
+    function showUnitBarcodeModal(unitId, unitName) {
+      const baseUrl = cloudSettings.sheetUrl || 'https://docs.google.com/spreadsheets';
+      // Append query parameter or search filter link for Google Sheets
+      const finalUrl = `${baseUrl}#gid=0&fvid=${unitId}`;
+
+      document.getElementById('barcodeModalTitle').innerText = `QR Barcode: ${unitId}`;
+      document.getElementById('barcodeDirectUrl').value = finalUrl;
+
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = ''; // Clear previous QR
+
+      qrCodeObj = new QRCode(qrContainer, {
+        text: finalUrl,
+        width: 160,
+        height: 160,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+
+      document.getElementById('unitBarcodeModal').classList.add('active');
+    }
+
+    function closeBarcodeModal() {
+      document.getElementById('unitBarcodeModal').classList.remove('active');
+    }
+
+    function openSheetUrlDirect() {
+      const url = document.getElementById('barcodeDirectUrl').value;
+      if (url) window.open(url, '_blank');
+    }
+
+    function renderUnitList() {
+      const container = document.getElementById('unit-list-container');
+      container.innerHTML = units.map(u => `
+        <div class="unit-item">
+          <div>
+            <span style="font-weight:bold; color:var(--accent-blue); font-size:11px; background:rgba(2,132,199,0.1); padding:2px 6px; border-radius:4px;">${u.id}</span>
+            <div style="font-weight:bold; margin-top:3px;">${u.name}</div>
+            <div style="font-size:11px; color:var(--text-muted);">${u.location} | Max: ${u.maxTemp}°C</div>
+          </div>
+          <div class="unit-actions">
+            <button onclick="showUnitBarcodeModal('${u.id}', '${u.name}')" class="btn-qr"><i data-lucide="qr-code" style="width:13px; height:13px;"></i> QR/Link</button>
+            <button onclick="deleteUnit('${u.id}')" style="background:none; border:none; color:var(--accent-rose); cursor:pointer;"><i data-lucide="trash-2" style="width:16px; height:16px;"></i></button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function openAddUnitModal() { document.getElementById('addUnitModal').classList.add('active'); }
+    function closeAddUnitModal() { document.getElementById('addUnitModal').classList.remove('active'); }
+
+    function handleAddUnitSubmit(e) {
+      e.preventDefault();
+      const newUnit = {
+        id: document.getElementById('newUnitId').value.toUpperCase().trim(),
+        name: document.getElementById('newUnitName').value.trim(),
+        location: document.getElementById('newUnitLocation').value.trim() || 'General Area',
+        maxTemp: parseFloat(document.getElementById('newMaxTemp').value),
+        maxVib: parseFloat(document.getElementById('newMaxVib').value)
+      };
+      if(units.some(u => u.id === newUnit.id)) { alert('⚠️ ID Unit sudah terdaftar!'); return; }
+      units.push(newUnit);
+      saveLocalData();
+      populateUnitOptions();
+      renderUnitList();
+      closeAddUnitModal();
+      document.getElementById('addUnitForm').reset();
+      if (cloudSettings.enabled && cloudSettings.scriptUrl) syncAllUnitsToCloud();
+    }
+
+    function deleteUnit(id) {
+      if(confirm(`Hapus unit ${id}?`)) {
+        units = units.filter(u => u.id !== id);
+        saveLocalData();
+        populateUnitOptions();
+        renderUnitList();
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('historyTableBody');
+      const searchVal = document.getElementById('searchFilter').value.toLowerCase();
+      const statusVal = document.getElementById('statusFilter').value;
+
+      const filtered = historyLogs.filter(item => {
+        const matchesSearch = item.inspector.toLowerCase().includes(searchVal) || item.notes.toLowerCase().includes(searchVal) || item.unitId.toLowerCase().includes(searchVal);
+        const matchesStatus = (statusVal === 'ALL') || (item.status === statusVal);
+        return matchesSearch && matchesStatus;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Belum ada riwayat data inspeksi.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => `
+        <tr>
+          <td><strong>${item.unitId}</strong><div style="font-size:10px; color:var(--text-muted);">${item.timestamp}</div></td>
+          <td>${item.inspector}</td>
+          <td style="text-align:center; font-family:monospace; font-weight:bold;">${item.temperature}°C</td>
+          <td style="text-align:center; font-family:monospace; font-weight:bold;">${item.vibration}</td>
+          <td style="font-size:11px;">Oli: ${item.checkOli} | Grease: ${item.checkGrease} | Elec: ${item.checkElectrical}</td>
+          <td><span class="badge-status status-${item.status.toLowerCase()}">${item.status}</span></td>
+          <td style="text-align:center;">${item.photoBase64 ? `<img src="${item.photoBase64}" onclick="openPhotoViewer('${item.photoBase64}', '${item.unitId}')" style="width:30px; height:30px; object-fit:cover; border-radius:4px; cursor:pointer;">` : '-'}</td>
+          <td>${item.notes}</td>
+          <td style="text-align:right;" class="no-print"><button onclick="deleteLogRecord('${item.id}')" style="background:none; border:none; color:var(--accent-rose); cursor:pointer;"><i data-lucide="trash" style="width:14px; height:14px;"></i></button></td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function deleteLogRecord(id) {
+      if(confirm('Hapus log ini?')) {
+        historyLogs = historyLogs.filter(h => h.id !== id);
+        saveLocalData();
+        renderTable();
+        renderChart();
+        updateDashboardKPI();
+      }
+    }
+
+    function openPhotoViewer(src, caption) {
+      document.getElementById('modalImageViewer').src = src;
+      document.getElementById('modalImageCaption').innerText = caption;
+      document.getElementById('photoViewerModal').classList.add('active');
+    }
+    function closePhotoViewer() { document.getElementById('photoViewerModal').classList.remove('active'); }
+
+    function renderChart() {
+      const ctx = document.getElementById('historyChart').getContext('2d');
+      const filterUnit = document.getElementById('chartUnitFilter').value;
+      let logs = [...historyLogs].reverse();
+      if (filterUnit !== 'ALL') logs = logs.filter(l => l.unitId === filterUnit);
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: logs.map(l => `${l.unitId} (${l.timestamp.split(' ')[0]})`),
+          datasets: [
+            { label: 'Suhu (°C)', data: logs.map(l => l.temperature), borderColor: '#f43f5e', tension: 0.3, yAxisID: 'yTemp' },
+            { label: 'Vibrasi (mm/s)', data: logs.map(l => l.vibration), borderColor: '#3b82f6', tension: 0.3, yAxisID: 'yVib' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            yTemp: { type: 'linear', position: 'left', ticks: { color: '#f43f5e' }, grid: { color: '#334155' } },
+            yVib: { type: 'linear', position: 'right', ticks: { color: '#3b82f6' }, grid: { drawOnChartArea: false } }
+          },
+          plugins: { legend: { labels: { color: '#f8fafc' } } }
+        }
+      });
+    }
+
+    function updateDashboardKPI() {
+      document.getElementById('stat-total-units').innerText = units.length;
+      let normal = 0, warning = 0, critical = 0;
+      units.forEach(u => {
+        const lastLog = historyLogs.find(h => h.unitId === u.id);
+        if (lastLog) {
+          if (lastLog.status === 'OK') normal++;
+          else if (lastLog.status === 'Warning') warning++;
+          else if (lastLog.status === 'Critical') critical++;
+        } else { normal++; }
+      });
+      document.getElementById('stat-normal').innerText = normal;
+      document.getElementById('stat-warning').innerText = warning;
+      document.getElementById('stat-critical').innerText = critical;
+    }
+
+    function exportToCSV() {
+      if (historyLogs.length === 0) { alert('Tidak ada data.'); return; }
+      let csv = 'ID,Timestamp,Unit ID,Inspector,Suhu,Vibrasi,Status\n';
+      historyLogs.forEach(r => { csv += `"${r.id}","${r.timestamp}","${r.unitId}","${r.inspector}",${r.temperature},${r.vibration},"${r.status}"\n`; });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Monitoring_Export.csv`;
+      link.click();
+    }
+
+    function saveLocalData() {
+      localStorage.setItem('indusense_units', JSON.stringify(units));
+      localStorage.setItem('indusense_history', JSON.stringify(historyLogs));
+    }
+
+    function initCloudSettingsUI() {
+      document.getElementById('syncEnableToggle').checked = cloudSettings.enabled;
+      document.getElementById('cloudScriptUrl').value = cloudSettings.scriptUrl || '';
+      document.getElementById('googleSheetUrl').value = cloudSettings.sheetUrl || '';
+      updateSyncStatusBadge();
+    }
+
+    function toggleCloudSyncState() {
+      cloudSettings.enabled = document.getElementById('syncEnableToggle').checked;
+      saveCloudSettings();
+    }
+
+    function saveCloudSettings() {
+      cloudSettings.enabled = document.getElementById('syncEnableToggle').checked;
+      cloudSettings.scriptUrl = document.getElementById('cloudScriptUrl').value.trim();
+      cloudSettings.sheetUrl = document.getElementById('googleSheetUrl').value.trim();
+      localStorage.setItem('indusense_cloud', JSON.stringify(cloudSettings));
+      updateSyncStatusBadge();
+      alert('💾 Konfigurasi Cloud & Link Google Sheet disimpan.');
+    }
+
+    function updateSyncStatusBadge() {
+      const dot = document.getElementById('sync-dot');
+      const text = document.getElementById('sync-text');
+      if (cloudSettings.enabled && cloudSettings.scriptUrl) {
+        dot.className = 'dot active'; text.innerText = 'Cloud Active';
+      } else {
+        dot.className = 'dot'; text.innerText = 'Cloud Offline';
+      }
+    }
+
+    async function pushRecordToCloud(record) {
+      if (!cloudSettings.scriptUrl) return;
+      try {
+        await fetch(cloudSettings.scriptUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ADD_LOG', payload: record }) });
+      } catch (err) { console.error(err); }
+    }
+
+    async function syncAllUnitsToCloud() {
+      if (!cloudSettings.scriptUrl) return;
+      try {
+        await fetch(cloudSettings.scriptUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'SYNC_UNITS', payload: units }) });
+      } catch (err) { console.error(err); }
+    }
+
+    async function testCloudConnection() {
+      const url = document.getElementById('cloudScriptUrl').value.trim();
+      if (!url) { alert('Masukkan URL Apps Script!'); return; }
+      try {
+        const res = await fetch(`${url}?action=PING`);
+        const data = await res.json();
+        if(data.status === 'SUCCESS') alert('✅ Koneksi Google Spreadsheet Berhasil!');
+      } catch (err) { alert('✅ Permintaan test terkirim.'); }
+    }
+
+    async function pullDataFromCloud() {
+      const url = cloudSettings.scriptUrl;
+      if (!url) { alert('Masukkan URL Apps Script!'); return; }
+      try {
+        const res = await fetch(`${url}?action=GET_ALL_DATA`);
+        const data = await res.json();
+        if (data.historyLogs) {
+          historyLogs = data.historyLogs;
+          if(data.units) units = data.units;
+          saveLocalData();
+          populateUnitOptions();
+          renderUnitList();
+          renderTable();
+          renderChart();
+          updateDashboardKPI();
+          alert('📥 Data berhasil ditarik dari Cloud!');
+        }
+      } catch (err) { alert('❌ Gagal menarik data.'); }
+    }
+  </script>
+</body>
+</html>
